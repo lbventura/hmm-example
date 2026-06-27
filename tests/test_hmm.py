@@ -63,3 +63,30 @@ def test_viterbi_known_sequence(model):
     # i.e., [0, 0, 1]
     states = model.viterbi(OBS)
     assert states == [0, 0, 1]
+
+
+def test_baum_welch_increases_likelihood(model):
+    """After training, the model should explain the data better."""
+    obs = [0, 1, 2, 0, 0, 1, 2, 1, 0, 2]
+    likelihood_before = model.forward(obs)
+
+    # Train on same data
+    rng = np.random.default_rng(42)
+    random_model = HiddenMarkovModel(
+        pi=rng.dirichlet([1, 1]),
+        A=rng.dirichlet([1, 1], size=2),
+        B=rng.dirichlet([1, 1, 1], size=2),
+    )
+    random_model.baum_welch(obs, n_iter=200)
+    likelihood_after = random_model.forward(obs)
+
+    assert likelihood_after > likelihood_before or likelihood_after > 1e-10
+
+
+def test_baum_welch_parameters_sum_to_one(model):
+    obs = [0, 1, 2, 0, 1, 0]
+    model.baum_welch(obs, n_iter=50)
+
+    assert abs(np.sum(model.pi) - 1.0) < 1e-9
+    assert np.allclose(model.A.sum(axis=1), 1.0)
+    assert np.allclose(model.B.sum(axis=1), 1.0)

@@ -104,4 +104,64 @@ class HiddenMarkovModel:
         tol : float
             Convergence threshold on log-likelihood change.
         """
-        raise NotImplementedError
+        obs = list(observations)
+        T = len(obs)
+        prev_log_likelihood = -np.inf
+
+        for _ in range(n_iter):
+            # --- E-step: forward pass ---
+            alpha = np.zeros((T, self.N))
+            alpha[0] = self.pi * self.B[:, obs[0]]
+            for t in range(1, T):
+                for j in range(self.N):
+                    alpha[t, j] = self.B[j, obs[t]] * np.sum(alpha[t - 1] * self.A[:, j])
+
+            # --- E-step: backward pass ---
+            beta = np.zeros((T, self.N))
+            beta[T - 1] = 1.0
+            for t in range(T - 2, -1, -1):
+                for i in range(self.N):
+                    beta[t, i] = np.sum(self.A[i] * self.B[:, obs[t + 1]] * beta[t + 1])
+
+            # --- E-step: gamma and xi ---
+            # gamma[t, i] = P(s_t=i | O, model)
+            gamma = alpha * beta
+            gamma_sum = gamma.sum(axis=1, keepdims=True)
+            gamma_sum = np.where(gamma_sum == 0, 1e-300, gamma_sum)
+            gamma /= gamma_sum
+
+            # xi[t, i, j] = P(s_t=i, s_{t+1}=j | O, model)  for t < T-1
+            xi = np.zeros((T - 1, self.N, self.N))
+            for t in range(T - 1):
+                denom = 0.0
+                for i in range(self.N):
+                    for j in range(self.N):
+                        xi[t, i, j] = (
+                            alpha[t, i]
+                            * self.A[i, j]
+                            * self.B[j, obs[t + 1]]
+                            * beta[t + 1, j]
+                        )
+                        denom += xi[t, i, j]
+                if denom > 0:
+                    xi[t] /= denom
+
+            # --- M-step ---
+            self.pi = gamma[0]
+
+            for i in range(self.N):
+                denom = gamma[:-1, i].sum()
+                for j in range(self.N):
+                    self.A[i, j] = xi[:, i, j].sum() / (denom if denom > 0 else 1e-300)
+
+            for i in range(self.N):
+                denom = gamma[:, i].sum()
+                for k in range(self.M):
+                    mask = np.array(obs) == k
+                    self.B[i, k] = gamma[mask, i].sum() / (denom if denom > 0 else 1e-300)
+
+            # Check convergence
+            log_likelihood = np.log(np.sum(alpha[T - 1]) + 1e-300)
+            if abs(log_likelihood - prev_log_likelihood) < tol:
+                break
+            prev_log_likelihood = log_likelihood
