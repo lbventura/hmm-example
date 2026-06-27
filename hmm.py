@@ -68,7 +68,27 @@ class HiddenMarkovModel:
         list[int]
             Most likely hidden state sequence.
         """
-        raise NotImplementedError
+        T = len(observations)
+        delta = np.zeros((T, self.N))
+        psi = np.zeros((T, self.N), dtype=int)
+
+        # Initialisation
+        delta[0] = self.pi * self.B[:, observations[0]]
+        psi[0] = 0
+
+        # Recursion
+        for t in range(1, T):
+            for j in range(self.N):
+                scores = delta[t - 1] * self.A[:, j]
+                psi[t, j] = int(np.argmax(scores))
+                delta[t, j] = self.B[j, observations[t]] * np.max(scores)
+
+        # Backtrack
+        states = [int(np.argmax(delta[T - 1]))]
+        for t in range(T - 1, 0, -1):
+            states.insert(0, psi[t, states[0]])
+
+        return states
 
     def baum_welch(self, observations, n_iter=100, tol=1e-6):
         """Estimate model parameters using the Baum-Welch (EM) algorithm.

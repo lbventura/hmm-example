@@ -46,3 +46,20 @@ def test_forward_known_sequence(model):
     # Precomputed reference value for [Walk, Shop, Clean]
     prob = model.forward(OBS)
     assert abs(prob - 0.036288) < 1e-5
+
+
+def test_viterbi_returns_correct_length(model):
+    states = model.viterbi(OBS)
+    assert len(states) == len(OBS)
+
+
+def test_viterbi_states_are_valid(model):
+    states = model.viterbi(OBS)
+    assert all(0 <= s < 2 for s in states)
+
+
+def test_viterbi_known_sequence(model):
+    # For [Walk, Shop, Clean] the most likely path is [Sunny, Sunny, Rainy]
+    # i.e., [0, 0, 1]
+    states = model.viterbi(OBS)
+    assert states == [0, 0, 1]
