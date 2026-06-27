@@ -1,0 +1,7 @@
+name: hmm-example
+channels:
+  - conda-forge
+dependencies:
+  - python=3.14
+  - numpy
+  - pytest
