@@ -41,7 +41,19 @@ class HiddenMarkovModel:
         float
             P(observations | model)
         """
-        raise NotImplementedError
+        T = len(observations)
+        # alpha[t, i] = P(o_1..o_t, s_t=i)
+        alpha = np.zeros((T, self.N))
+
+        # Initialisation
+        alpha[0] = self.pi * self.B[:, observations[0]]
+
+        # Recursion
+        for t in range(1, T):
+            for j in range(self.N):
+                alpha[t, j] = self.B[j, observations[t]] * np.sum(alpha[t - 1] * self.A[:, j])
+
+        return float(np.sum(alpha[T - 1]))
 
     def viterbi(self, observations):
         """Find the most likely hidden state sequence using the Viterbi algorithm.
