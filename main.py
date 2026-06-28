@@ -5,48 +5,35 @@ Observations  : Walk (0), Shop (1), Clean (2)
 """
 
 import numpy as np
+
 from hmm import HiddenMarkovModel
 
-# ── True model parameters (from Eisner 2002) ─────────────────────────────────
-PI_TRUE = [0.6, 0.4]
+# True model parameters (from Eisner 2002)
+PI_TRUE: list[float] = [0.6, 0.4]
 
-A_TRUE = [
+A_TRUE: list[list[float]] = [
     [0.7, 0.3],
     [0.4, 0.6],
 ]
 
-B_TRUE = [
+B_TRUE: list[list[float]] = [
     [0.5, 0.4, 0.1],
     [0.1, 0.3, 0.6],
 ]
 
-STATE_NAMES = ["Sunny", "Rainy"]
-OBS_NAMES   = ["Walk", "Shop", "Clean"]
+STATE_NAMES: list[str] = ["Sunny", "Rainy"]
+OBS_NAMES: list[str] = ["Walk", "Shop", "Clean"]
 
 
-def generate_sequence(model, length, seed=0):
-    """Sample a random observation sequence from a model."""
-    rng = np.random.default_rng(seed)
-    state = rng.choice(model.N, p=model.pi)
-    observations, states = [], []
-    for _ in range(length):
-        obs = rng.choice(model.M, p=model.B[state])
-        observations.append(int(obs))
-        states.append(int(state))
-        state = rng.choice(model.N, p=model.A[state])
-    return observations, states
-
-
-def main():
+def main() -> None:
     print("=" * 60)
     print("  Hidden Markov Model — Weather Example")
     print("=" * 60)
 
     true_model = HiddenMarkovModel(PI_TRUE, A_TRUE, B_TRUE)
 
-    # ── Generate a sequence ───────────────────────────────────────────────────
-    obs, true_states = generate_sequence(true_model, length=10, seed=42)
-    obs_names   = [OBS_NAMES[o] for o in obs]
+    obs, true_states = true_model.sample(length=10, rng=42)
+    obs_names = [OBS_NAMES[o] for o in obs]
     state_names = [STATE_NAMES[s] for s in true_states]
 
     print(f"\nGenerated observation sequence (length {len(obs)}):")
@@ -54,12 +41,10 @@ def main():
     print(f"\nTrue hidden state sequence:")
     print("  " + " → ".join(state_names))
 
-    # ── Forward algorithm ─────────────────────────────────────────────────────
     likelihood = true_model.forward(obs)
     print(f"\n[Forward Algorithm]")
     print(f"  P(observations | true model) = {likelihood:.8f}")
 
-    # ── Viterbi algorithm ─────────────────────────────────────────────────────
     decoded = true_model.viterbi(obs)
     decoded_names = [STATE_NAMES[s] for s in decoded]
     accuracy = sum(d == t for d, t in zip(decoded, true_states)) / len(obs)
@@ -69,8 +54,7 @@ def main():
     print(f"  True    : " + " → ".join(state_names))
     print(f"  Accuracy: {accuracy:.0%}")
 
-    # ── Baum-Welch learning ───────────────────────────────────────────────────
-    # Start from a random model and train on the observation sequence
+    # Start from a random model and train on the observation sequence.
     rng = np.random.default_rng(7)
     random_model = HiddenMarkovModel(
         pi=rng.dirichlet([1, 1]),
@@ -80,7 +64,7 @@ def main():
 
     print(f"\n[Baum-Welch Learning]")
     print(f"  Initial likelihood: {random_model.forward(obs):.8f}")
-    random_model.baum_welch(obs, n_iter=500)
+    random_model.baum_welch(obs, n_iter=2000)
     print(f"  Final   likelihood: {random_model.forward(obs):.8f}")
 
     print(f"\n  Learned transition matrix A:")

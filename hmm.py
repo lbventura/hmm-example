@@ -5,7 +5,12 @@ Uses the classic weather example:
   - Observations: Walk (0), Shop (1), Clean (2)
 """
 
+from collections.abc import Sequence
+
 import numpy as np
+
+ArrayLike = Sequence[float] | Sequence[Sequence[float]] | np.ndarray
+SeedLike = np.random.Generator | int | None
 
 
 class HiddenMarkovModel:
@@ -21,109 +26,84 @@ class HiddenMarkovModel:
         Emission matrix. B[i, k] = P(o_t=k | s_t=i).
     """
 
-    def __init__(self, pi, A, B):
+    pi: np.ndarray
+    A: np.ndarray
+    B: np.ndarray
+    N: int
+    M: int
+
+    def __init__(self, pi: ArrayLike, A: ArrayLike, B: ArrayLike) -> None:
         self.pi = np.array(pi, dtype=float)
         self.A = np.array(A, dtype=float)
         self.B = np.array(B, dtype=float)
-        self.N = self.A.shape[0]  # number of hidden states
-        self.M = self.B.shape[1]  # number of observation symbols
+        self.N = self.A.shape[0]
+        self.M = self.B.shape[1]
 
-    def forward(self, observations):
-        """Compute the likelihood P(O | model) using the forward algorithm.
-
-        Parameters
-        ----------
-        observations : list[int]
-            Sequence of observation indices.
-
-        Returns
-        -------
-        float
-            P(observations | model)
-        """
+    def _forward_pass(self, observations: Sequence[int]) -> np.ndarray:
+        """Compute alpha[t, i] = P(o_1..o_t, s_t=i) for all t, i."""
         T = len(observations)
-        # alpha[t, i] = P(o_1..o_t, s_t=i)
         alpha = np.zeros((T, self.N))
-
-        # Initialisation
         alpha[0] = self.pi * self.B[:, observations[0]]
-
-        # Recursion
         for t in range(1, T):
             for j in range(self.N):
                 alpha[t, j] = self.B[j, observations[t]] * np.sum(alpha[t - 1] * self.A[:, j])
+        return alpha
 
-        return float(np.sum(alpha[T - 1]))
+    def _backward_pass(self, observations: Sequence[int]) -> np.ndarray:
+        """Compute beta[t, i] = P(o_{t+1}..o_T | s_t=i) for all t, i."""
+        T = len(observations)
+        beta = np.zeros((T, self.N))
+        beta[T - 1] = 1.0
+        for t in range(T - 2, -1, -1):
+            for i in range(self.N):
+                beta[t, i] = np.sum(self.A[i] * self.B[:, observations[t + 1]] * beta[t + 1])
+        return beta
 
-    def viterbi(self, observations):
-        """Find the most likely hidden state sequence using the Viterbi algorithm.
+    def forward(self, observations: Sequence[int]) -> float:
+        """Compute the likelihood P(O | model) using the forward algorithm."""
+        alpha = self._forward_pass(observations)
+        return float(np.sum(alpha[-1]))
 
-        Parameters
-        ----------
-        observations : list[int]
-            Sequence of observation indices.
-
-        Returns
-        -------
-        list[int]
-            Most likely hidden state sequence.
-        """
+    def viterbi(self, observations: Sequence[int]) -> list[int]:
+        """Find the most likely hidden state sequence using the Viterbi algorithm."""
         T = len(observations)
         delta = np.zeros((T, self.N))
         psi = np.zeros((T, self.N), dtype=int)
 
-        # Initialisation
         delta[0] = self.pi * self.B[:, observations[0]]
         psi[0] = 0
 
-        # Recursion
         for t in range(1, T):
             for j in range(self.N):
                 scores = delta[t - 1] * self.A[:, j]
                 psi[t, j] = int(np.argmax(scores))
                 delta[t, j] = self.B[j, observations[t]] * np.max(scores)
 
-        # Backtrack
         states = [int(np.argmax(delta[T - 1]))]
         for t in range(T - 1, 0, -1):
-            states.insert(0, psi[t, states[0]])
-
+            states.insert(0, int(psi[t, states[0]]))
         return states
 
-    def baum_welch(self, observations, n_iter=100, tol=1e-6):
+    def baum_welch(
+        self,
+        observations: Sequence[int],
+        n_iter: int = 100,
+        tol: float = 1e-6,
+    ) -> None:
         """Estimate model parameters using the Baum-Welch (EM) algorithm.
 
-        Updates self.pi, self.A, self.B in-place.
-
-        Parameters
-        ----------
-        observations : list[int]
-            Sequence of observation indices.
-        n_iter : int
-            Maximum number of EM iterations.
-        tol : float
-            Convergence threshold on log-likelihood change.
+        Updates self.pi, self.A, self.B in-place. Maximum `n_iter` EM iterations,
+        early-stop when |Δ log-likelihood| < `tol`.
         """
         obs = list(observations)
+        obs_arr = np.asarray(obs)
         T = len(obs)
         prev_log_likelihood = -np.inf
 
         for _ in range(n_iter):
-            # --- E-step: forward pass ---
-            alpha = np.zeros((T, self.N))
-            alpha[0] = self.pi * self.B[:, obs[0]]
-            for t in range(1, T):
-                for j in range(self.N):
-                    alpha[t, j] = self.B[j, obs[t]] * np.sum(alpha[t - 1] * self.A[:, j])
+            alpha = self._forward_pass(obs)
+            beta = self._backward_pass(obs)
 
-            # --- E-step: backward pass ---
-            beta = np.zeros((T, self.N))
-            beta[T - 1] = 1.0
-            for t in range(T - 2, -1, -1):
-                for i in range(self.N):
-                    beta[t, i] = np.sum(self.A[i] * self.B[:, obs[t + 1]] * beta[t + 1])
-
-            # --- E-step: gamma and xi ---
             # gamma[t, i] = P(s_t=i | O, model)
             gamma = alpha * beta
             gamma_sum = gamma.sum(axis=1, keepdims=True)
@@ -146,22 +126,39 @@ class HiddenMarkovModel:
                 if denom > 0:
                     xi[t] /= denom
 
-            # --- M-step ---
             self.pi = gamma[0]
-
             for i in range(self.N):
                 denom = gamma[:-1, i].sum()
                 for j in range(self.N):
                     self.A[i, j] = xi[:, i, j].sum() / (denom if denom > 0 else 1e-300)
-
             for i in range(self.N):
                 denom = gamma[:, i].sum()
                 for k in range(self.M):
-                    mask = np.array(obs) == k
+                    mask = obs_arr == k
                     self.B[i, k] = gamma[mask, i].sum() / (denom if denom > 0 else 1e-300)
 
-            # Check convergence
-            log_likelihood = np.log(np.sum(alpha[T - 1]) + 1e-300)
+            log_likelihood = float(np.log(np.sum(alpha[T - 1]) + 1e-300))
             if abs(log_likelihood - prev_log_likelihood) < tol:
                 break
             prev_log_likelihood = log_likelihood
+
+    def sample(
+        self,
+        length: int,
+        rng: SeedLike = None,
+    ) -> tuple[list[int], list[int]]:
+        """Sample an observation sequence (and the underlying hidden states).
+
+        `rng` may be an int seed, an ``np.random.Generator``, or ``None``.
+        Returns ``(observations, states)`` of length ``length``.
+        """
+        rng = np.random.default_rng(rng)
+        state = int(rng.choice(self.N, p=self.pi))
+        observations: list[int] = []
+        states: list[int] = []
+        for _ in range(length):
+            obs = int(rng.choice(self.M, p=self.B[state]))
+            observations.append(obs)
+            states.append(state)
+            state = int(rng.choice(self.N, p=self.A[state]))
+        return observations, states
