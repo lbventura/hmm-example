@@ -117,10 +117,7 @@ class HiddenMarkovModel:
                 for i in range(self.N):
                     for j in range(self.N):
                         xi[t, i, j] = (
-                            alpha[t, i]
-                            * self.A[i, j]
-                            * self.B[j, obs[t + 1]]
-                            * beta[t + 1, j]
+                            alpha[t, i] * self.A[i, j] * self.B[j, obs[t + 1]] * beta[t + 1, j]
                         )
                         denom += xi[t, i, j]
                 if denom > 0:
