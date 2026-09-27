@@ -1,0 +1,21 @@
+[tool.ruff]
+target-version = "py314"
+line-length = 100
+extend-exclude = ["data", "docs"]
+
+[tool.ruff.lint]
+# E/W: pycodestyle, F: pyflakes (incl. F401 unused imports),
+# I: import sorting, UP: pyupgrade, B: flake8-bugbear, SIM: flake8-simplify
+select = ["E", "W", "F", "I", "UP", "B", "SIM"]
+ignore = [
+    "E501",   # line length is handled by the formatter
+    "SIM108", # ternary-vs-if is a style preference
+]
+
+[tool.ruff.lint.per-file-ignores]
+# M, I, D are the canonical state names for Match/Insert/Delete in profile
+# HMM literature (HMMER/Plan7). Renaming them would obscure the algorithm.
+"profile_hmm.py" = ["E741"]
+
+[tool.pytest.ini_options]
+addopts = "-v"
