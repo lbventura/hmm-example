@@ -194,9 +194,7 @@ def fmt_matrix(M: np.ndarray, names: Sequence[str], label: str) -> str:
 
 
 def main() -> None:
-    logger.info("=" * 72)
     logger.info("  Naive vs improved Baum-Welch training on the weather HMM")
-    logger.info("=" * 72)
 
     true_model = HiddenMarkovModel(wm.PI_TRUE, wm.A_TRUE, wm.B_TRUE)
     true_A = np.array(wm.A_TRUE)
@@ -208,7 +206,6 @@ def main() -> None:
     N_RESTARTS = 5
     PSEUDO = 0.5
 
-    logger.info("")
     logger.info(fmt_matrix(true_A, wm.STATE_NAMES, "True A"))
     logger.info(fmt_matrix(true_B, wm.STATE_NAMES, "True B (Walk / Shop / Clean)"))
 
@@ -260,13 +257,11 @@ def main() -> None:
     logger.info(fmt_matrix(best_model.B[p], wm.STATE_NAMES, "Learned B (label-aligned)"))
     logger.info(f"  L1 distance |A - Â| + |B - B̂| = {d_improved:.4f}\n")
 
-    logger.info("=" * 72)
     if d_improved > 0:
         logger.info(
             f"  Error reduction: {d_naive / d_improved:.1f}x lower L1 distance "
             f"(naive {d_naive:.3f} → improved {d_improved:.3f})"
         )
-    logger.info("=" * 72)
 
 
 if __name__ == "__main__":
