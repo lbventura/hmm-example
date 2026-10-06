@@ -1,16 +1,36 @@
 # hmm-example
 
+## Set up a development environment
+
+Install [Micromamba](https://mamba.readthedocs.io/en/latest/installation/micromamba-installation.html), then create and activate the environment defined in `environment.yml`:
+
+```bash
+micromamba create -f environment.yml
+micromamba activate hmm-example
+```
+
+The environment includes Python 3.14, NumPy, pytest, Ruff, and pre-commit. To run commands without activating it, use `micromamba run -n hmm-example <command>`.
+
+## Run checks
+
+```bash
+micromamba run -n hmm-example pytest tests
+micromamba run -n hmm-example ruff check .
+```
+
+## Introductory example (weather_example.py)
+
 A small Hidden Markov Model (HMM) demo using the classic Eisner (2002) weather
 example: hidden states `Sunny`/`Rainy`, observations `Walk`/`Shop`/`Clean`.
 
 - `hmm.py` — `HiddenMarkovModel` with `forward`, `viterbi`, `baum_welch`, `sample`.
-- `main.py` — runs forward, Viterbi, and a naive single-sequence Baum-Welch.
+- `weather_example.py` — runs forward, Viterbi, and a naive single-sequence Baum-Welch.
 - `compare_training.py` — naive vs. an *improved* Baum-Welch trainer, scored by
   the L1 distance between learned and true `(A, B)`.
 - `tests/test_hmm.py` — pytest suite for the model.
 
 ```bash
-python main.py              # forward / Viterbi / single-sequence training
+python weather_example.py              # forward / Viterbi / single-sequence training
 python compare_training.py  # naive vs improved Baum-Welch (≈4–5× lower L1)
 python -m pytest tests/     # unit tests
 ```
@@ -66,3 +86,48 @@ ingredient:
   `log π`, `log A`, `log B` are finite from the first iteration and the
   log-space E-step is well-defined immediately, with no special-casing of
   initial zeros.
+
+## Protein Profile HMM (`protein_profile_hmm.py`)
+
+A glocal profile Hidden Markov Model for protein sequence comparison,
+modelled after HMMER's core architecture.  A profile is built from a
+multiple sequence alignment (MSA) and then used to score query sequences
+against the represented protein family.
+
+Architecture — the profile has K Match positions (one per consensus
+column), K Delete states (silent), and K+1 Insert states.  All emission
+and transition probabilities are stored in **log2** space; scoring returns
+log-odds bit scores relative to a background null model—positive scores
+mean the query fits the family better than a random sequence.
+
+### State transitions
+
+There are 9 slots per column slot k:
+
+| Index | Transition |
+|-------|-----------|
+| 0 | M_k → M_{k+1} |
+| 1 | M_k → I_k |
+| 2 | M_k → D_{k+1} |
+| 3 | I_k → M_{k+1} |
+| 4 | I_k → I_k |
+| 5 | D_k → M_{k+1} |
+| 6 | D_k → D_{k+1} |
+| 7 | B → M_1 (begin) |
+| 8 | B → D_1 (begin) |
+
+### Key methods
+
+- `ProfileHMM.build_from_msa(msa)` counts emissions and
+transitions, applies Laplace smoothing, and returns a trained profile.
+- `viterbi(seq)` returns the maximum-likelihood path bit score;
+- `forward(seq)` marginalises over all paths via the Forward algorithm.
+
+### Imports
+
+- `amino_acids` — 20-letter canonical alphabet, residue encoding, and
+  Robinson & Robinson (1991) background frequencies used to convert
+  log-probabilities into log-odds scores.
+- `msa` — Stockholm-format MSA parser and the `match_column_mask` function
+  that assigns alignment columns to Match or Insert slots via HMMER's
+  `--symfrac` rule.
