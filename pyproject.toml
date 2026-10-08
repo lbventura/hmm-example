@@ -15,7 +15,7 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 # M, I, D are the canonical state names for Match/Insert/Delete in profile
 # HMM literature (HMMER/Plan7). Renaming them would obscure the algorithm.
-"profile_hmm.py" = ["E741"]
+"protein_profile_hmm.py" = ["E741"]
 
 [tool.pytest.ini_options]
 addopts = "-v"
