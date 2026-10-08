@@ -63,7 +63,6 @@ def main() -> None:
         logger.info(f"  Margin                : {median - neg_v[0]:8.2f} bits")
 
 
-
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     main()
