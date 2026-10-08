@@ -4,9 +4,9 @@ from io import StringIO
 
 import numpy as np
 
-from amino_acids import AA_INDEX, BACKGROUND_FREQ
-from msa import match_column_mask, parse_stockholm
-from protein_profile_hmm import (
+from protein_profile_hmm.amino_acids import AA_INDEX, BACKGROUND_FREQ
+from protein_profile_hmm.msa import match_column_mask, parse_stockholm
+from protein_profile_hmm.protein_profile_hmm import (
     NEG_INF,
     T_BD,
     T_BM,

@@ -11,11 +11,11 @@ Prints a ranked table of Viterbi and Forward bit scores.
 import logging
 from pathlib import Path
 
-from fasta_parser import parse_fasta, read_first
-from msa import parse_stockholm
-from protein_profile_hmm import ProfileHMM
+from .fasta_parser import parse_fasta, read_first
+from .msa import parse_stockholm
+from .protein_profile_hmm import ProfileHMM
 
-DATA = Path(__file__).resolve().parent / "data"
+DATA = Path(__file__).resolve().parent.parent / "data"
 logger = logging.getLogger(__name__)
 
 

@@ -8,7 +8,7 @@ import logging
 
 import numpy as np
 
-from hmm import HiddenMarkovModel
+from .hmm import HiddenMarkovModel
 
 logger = logging.getLogger(__name__)
 

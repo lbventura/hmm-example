@@ -1,6 +1,6 @@
 """Tests for the amino-acid alphabet and background frequencies."""
 
-from amino_acids import (
+from protein_profile_hmm.amino_acids import (
     AA_ALPHABET,
     AA_INDEX,
     BACKGROUND_FREQ,
