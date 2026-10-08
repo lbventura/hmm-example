@@ -8,6 +8,8 @@ from amino_acids import AA_INDEX, BACKGROUND_FREQ
 from msa import match_column_mask, parse_stockholm
 from protein_profile_hmm import (
     NEG_INF,
+    T_BD,
+    T_BM,
     T_DD,
     T_DM,
     T_II,
@@ -134,6 +136,68 @@ def test_build_from_msa_distinguishes_insert_columns_from_deleted_positions() ->
     np.testing.assert_allclose(hmm.log_match_emit, without_empty_column.log_match_emit)
     np.testing.assert_allclose(hmm.log_insert_emit, without_empty_column.log_insert_emit)
     np.testing.assert_allclose(hmm.log_trans, without_empty_column.log_trans)
+
+
+def test_build_from_msa_handles_leading_insert_match_and_delete_paths() -> None:
+    """At the start, rows can insert a residue, match M1, or skip it."""
+    rows = ["GAC", ".AC", "..C"]
+    # Columns: G.. -> I0, AA. -> M1, CCC -> M2.
+    assert match_column_mask(rows).tolist() == [False, True, True]
+    hmm = _build(rows, symfrac=0.5, pseudocount=1.0)
+    assert hmm.K == 2
+
+    # GAC: virtual M0 -> I0(G) -> M1(A) -> M2(C)
+    # .AC: B -> M1(A) -> M2(C)
+    # ..C: B -> D1 -> M2(C), emitting nothing at D1.
+    expected_insert = 20 * BACKGROUND_FREQ.copy()
+    expected_insert[AA_INDEX["G"]] += 1
+    np.testing.assert_allclose(2 ** hmm.log_insert_emit[0], expected_insert / 21)
+    # Each match starts with 20 pseudocounts (one per amino acid); gaps add nothing.
+    # M1 observes 2 A: total 22, A count 3, C count 1.
+    # M2 observes 3 C: total 23, A count 1, C count 4.
+    np.testing.assert_allclose(2 ** hmm.log_match_emit[:, AA_INDEX["A"]], [3 / 22, 1 / 23])
+    np.testing.assert_allclose(2 ** hmm.log_match_emit[:, AA_INDEX["C"]], [1 / 22, 4 / 23])
+
+    # One direct B->M1 and one B->D1; the leading insert is counted separately.
+    # With one pseudocount each, Begin's counts [2, 2] give [1/2, 1/2].
+    np.testing.assert_allclose(2 ** hmm.log_trans[0, [T_BM, T_BD]], [1 / 2, 1 / 2])
+    np.testing.assert_allclose(2 ** hmm.log_trans[0, T_MI], 1)  # Singleton group.
+    # I0->M1 and D1->M2 each occur once; their alternative loops occur zero times.
+    np.testing.assert_allclose(2 ** hmm.log_trans[0, [T_IM, T_II]], [2 / 3, 1 / 3])
+    np.testing.assert_allclose(2 ** hmm.log_trans[1, [T_DM, T_DD]], [2 / 3, 1 / 3])
+
+
+def test_build_from_msa_handles_internal_match_insert_and_delete_paths() -> None:
+    """Inside the profile, rows can continue, insert, or skip a match position."""
+    rows = ["AGGCE", "A..CE", "A...E"]
+    # Columns: AAA -> M1, G.. -> I1, G.. -> I1, CC. -> M2, EEE -> M3.
+    assert match_column_mask(rows).tolist() == [True, False, False, True, True]
+    hmm = _build(rows, symfrac=0.5, pseudocount=1.0)
+    assert hmm.K == 3
+
+    # AGGCE: M1(A) -> I1(G) -> I1(G) -> M2(C) -> M3(E)
+    # A..CE: M1(A) -> M2(C) -> M3(E)
+    # A...E: M1(A) -> D2 -> M3(E), emitting nothing at D2.
+    expected_insert = 20 * BACKGROUND_FREQ.copy()
+    expected_insert[AA_INDEX["G"]] += 2
+    np.testing.assert_allclose(2 ** hmm.log_insert_emit[1], expected_insert / 22)
+    # M2 observes 2 C; M3 observes 3 E. Include one pseudocount per amino acid.
+    np.testing.assert_allclose(2 ** hmm.log_match_emit[1, AA_INDEX["C"]], 3 / 22)
+    np.testing.assert_allclose(2 ** hmm.log_match_emit[2, AA_INDEX["E"]], 4 / 23)
+
+    # M1: [MM, MI, MD] observed [1, 1, 1] + one pseudocount each = [2, 2, 2].
+    # divided by the outgoing transition counts (plus pseudocount) from M1; 2 (MI) + 2 (MM) + 2 (MD) = 6.
+    np.testing.assert_allclose(2 ** hmm.log_trans[1, [T_MM, T_MI, T_MD]], [1 / 3, 1 / 3, 1 / 3])
+    # I1: one return to M2 (IM), one loop for the second G (II).
+    # divded by the outgoing transition counts (plus pseudocount) from I1; 2 (II) + 2 (IM) = 4.
+    np.testing.assert_allclose(2 ** hmm.log_trans[1, [T_IM, T_II]], [1 / 2, 1 / 2])
+    # M2: two rows take MM; none take MI or MD. [2, 0, 0] + one pseudocount each = [3, 1, 1].
+    # divided by the outgoing transition counts (plus pseudocount) from M2; 3 (MM) + 1 (MI) + 1 (MD) = 5.
+    np.testing.assert_allclose(2 ** hmm.log_trans[2, [T_MM, T_MI, T_MD]], [3 / 5, 1 / 5, 1 / 5])
+    # D2: one row resumes at M3 (DM); none extend the deletion (DD).
+    # Observed [1, 0] + one pseudocount each = [2, 1].
+    # divided by the outgoing transition counts (plus pseudocount) from D2 ; 2 (DM) + 1 (DD) = 3.
+    np.testing.assert_allclose(2 ** hmm.log_trans[2, [T_DM, T_DD]], [2 / 3, 1 / 3])
 
 
 def test_emission_rows_are_normalised_probabilities_in_log_space() -> None:
