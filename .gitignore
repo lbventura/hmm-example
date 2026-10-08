@@ -4,3 +4,6 @@ __pycache__/
 .DS_Store
 .vscode/
 docs/
+.ruff_cache/
+.mypy_cache/
+implementation_plans
