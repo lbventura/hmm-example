@@ -12,10 +12,9 @@ Use Clean Code, DRY, KISS, YAGNI, and SOLID as guidance; apply them with judgmen
 
 ## Project layout
 
-- `hmm.py` and `protein_profile_hmm.py`: discrete and protein profile HMM implementations.
-- `amino_acids.py`, `fasta_parser.py`, and `msa.py`: amino-acid definitions and sequence/alignment parsing.
-- `weather_example.py`, `compare_training.py`, and `protein_demo.py`: examples and training comparisons.
-- `scripts/download_data.py` and `data/`: HMMER tutorial datasets and their downloader.
+- `weather_example/`: discrete HMM, weather demo, and training comparison.
+- `protein_profile_hmm/`: protein profile HMM, sequence/alignment parsing, demo, and dataset downloader.
+- `data/`: HMMER tutorial datasets.
 - `tests/`: unit and integration coverage.
 
 Keep code in the layer that owns its behavior. Avoid duplicating model or parsing logic in demonstration scripts.

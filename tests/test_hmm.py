@@ -8,7 +8,7 @@ Uses the canonical Eisner (2002) ice cream / weather HMM values adapted to:
 import numpy as np
 import pytest
 
-from hmm import HiddenMarkovModel
+from weather_example.hmm import HiddenMarkovModel
 
 # Canonical weather HMM parameters
 PI = [0.6, 0.4]

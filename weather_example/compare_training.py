@@ -16,8 +16,8 @@ from itertools import permutations
 
 import numpy as np
 
-import weather_example as wm
-from hmm import HiddenMarkovModel
+from . import weather_example as wm
+from .hmm import HiddenMarkovModel
 
 logger = logging.getLogger(__name__)
 

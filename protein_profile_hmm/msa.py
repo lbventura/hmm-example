@@ -38,7 +38,7 @@ from typing import TextIO
 
 import numpy as np
 
-from amino_acids import is_residue
+from .amino_acids import is_residue
 
 
 @dataclass

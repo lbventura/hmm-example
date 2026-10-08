@@ -37,8 +37,8 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from amino_acids import BACKGROUND_FREQ, N_AMINO_ACIDS, encode
-from msa import MSA, match_column_mask
+from .amino_acids import BACKGROUND_FREQ, N_AMINO_ACIDS, encode
+from .msa import MSA, match_column_mask
 
 NEG_INF: float = -1e30
 

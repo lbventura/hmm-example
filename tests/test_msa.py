@@ -2,7 +2,7 @@
 
 from io import StringIO
 
-from msa import match_column_mask, parse_stockholm
+from protein_profile_hmm.msa import match_column_mask, parse_stockholm
 
 
 def test_parse_stockholm_returns_msa_with_names_and_rows() -> None:

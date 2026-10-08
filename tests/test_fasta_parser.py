@@ -2,7 +2,7 @@
 
 from io import StringIO
 
-from fasta_parser import parse_fasta
+from protein_profile_hmm.fasta_parser import parse_fasta
 
 
 def test_parse_single_sequence() -> None:

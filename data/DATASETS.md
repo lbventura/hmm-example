@@ -11,7 +11,7 @@ ideal fit for testing this educational re-implementation.
 - License: HMMER is distributed under the BSD-3-Clause license (see the
   HMMER repository's `LICENSE` file). The small example sequences come from
   public sources (Swiss-Prot / Pfam seed) and are widely redistributed.
-- Fetcher: run `python scripts/download_data.py` to (re)download.
+- Fetcher: run `python -m protein_profile_hmm.download_data` from the repository root to (re)download.
 
 ## Files
 
@@ -52,7 +52,7 @@ ideal fit for testing this educational re-implementation.
 ### `7LESS_DROME.fa`  —  negative control (converted)
 - **Format:** plain FASTA
 - **Contents:** the 2554-residue sequence extracted from `7LESS_DROME` by
-  `scripts/download_data.py`.
+  `protein_profile_hmm/download_data.py`.
 - **Role:** lets the rest of the pipeline (parsers, scorers, demo) work
   exclusively with FASTA so we don't carry a Swiss-Prot parser through the
   whole codebase.

@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from fasta_parser import parse_fasta, read_first
-from msa import parse_stockholm
-from protein_profile_hmm import ProfileHMM
+from protein_profile_hmm.fasta_parser import parse_fasta, read_first
+from protein_profile_hmm.msa import parse_stockholm
+from protein_profile_hmm.protein_profile_hmm import ProfileHMM
 
 DATA = Path(__file__).resolve().parent.parent / "data"
 
