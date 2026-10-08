@@ -36,7 +36,7 @@ Keep code in the layer that owns its behavior. Avoid duplicating model or parsin
 
 - Put focused unit coverage in the matching `tests/test_*.py` module and more general scoring tests in `tests/test_globins_integration.py`.
 - When asked to verify a change, run the narrowest relevant checks first. Tests use the checked-in datasets in `data/`.
-- Use the `hmm-example` Micromamba environment defined in `environment.yml`. From the repository root, run `micromamba run -n hmm-example pytest tests` and `micromamba run -n hmm-example pre-commit run --all-files`.
+- Use the `protein-hmm` Micromamba environment defined in `environment.yml`. From the repository root, run `micromamba run -n protein-hmm pytest tests` and `micromamba run -n protein-hmm pre-commit run --all-files`.
 - Do not change unrelated tests or generated data as part of an implementation.
 
 ## Contributions

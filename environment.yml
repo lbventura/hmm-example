@@ -1,4 +1,4 @@
-name: hmm-example
+name: protein-hmm
 channels:
   - conda-forge
 dependencies:

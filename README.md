@@ -1,4 +1,4 @@
-# hmm-example
+# protein-hmm
 
 ## Set up a development environment
 
@@ -6,16 +6,16 @@ Install [Micromamba](https://mamba.readthedocs.io/en/latest/installation/microma
 
 ```bash
 micromamba create -f environment.yml
-micromamba activate hmm-example
+micromamba activate protein-hmm
 ```
 
-The environment includes Python 3.14, NumPy, pytest, Ruff, and pre-commit. To run commands without activating it, use `micromamba run -n hmm-example <command>`.
+The environment includes Python 3.14, NumPy, pytest, Ruff, and pre-commit. To run commands without activating it, use `micromamba run -n protein-hmm <command>`.
 
 ## Run checks
 
 ```bash
-micromamba run -n hmm-example pytest tests
-micromamba run -n hmm-example ruff check .
+micromamba run -n protein-hmm pytest tests
+micromamba run -n protein-hmm ruff check .
 ```
 
 ## Introductory example (weather_example.py)
