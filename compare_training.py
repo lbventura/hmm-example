@@ -1,7 +1,7 @@
 """Compare naive vs improved Baum-Welch training on the weather HMM.
 
 Naive    : 1 sequence, 1 random init, no smoothing, unscaled forward/backward
-           (identical to what main.py does).
+           (identical to what weather_example.py does).
 Improved : many sequences from the same generative model, multiple random
            restarts (pick highest log-likelihood), additive Dirichlet smoothing
            in the M-step, and log-space forward/backward to avoid underflow.
@@ -10,13 +10,16 @@ Both methods are evaluated by aligning labels (best row permutation) and
 computing the L1 distance |A - Â| + |B - B̂| against the true parameters.
 """
 
+import logging
 from collections.abc import Sequence
 from itertools import permutations
 
 import numpy as np
 
-import main as wm
+import weather_example as wm
 from hmm import HiddenMarkovModel
+
+logger = logging.getLogger(__name__)
 
 
 def generate_sequences(
@@ -66,8 +69,7 @@ def _log_forward_backward(
     log_alpha[0] = log_pi + log_B[:, obs[0]]
     for t in range(1, T):
         # log_alpha[t, j] = log_B[j, obs[t]] + logsumexp_i(log_alpha[t-1, i] + log_A[i, j])
-        log_alpha[t] = log_B[:, obs[t]] + _logsumexp(
-            log_alpha[t - 1][:, None] + log_A, axis=0)
+        log_alpha[t] = log_B[:, obs[t]] + _logsumexp(log_alpha[t - 1][:, None] + log_A, axis=0)
 
     log_lik = float(_logsumexp(log_alpha[T - 1]))
 
@@ -75,8 +77,7 @@ def _log_forward_backward(
     log_beta[T - 1] = 0.0
     for t in range(T - 2, -1, -1):
         # log_beta[t, i] = logsumexp_j(log_A[i, j] + log_B[j, obs[t+1]] + log_beta[t+1, j])
-        log_beta[t] = _logsumexp(
-            log_A + (log_B[:, obs[t + 1]] + log_beta[t + 1])[None, :], axis=1)
+        log_beta[t] = _logsumexp(log_A + (log_B[:, obs[t + 1]] + log_beta[t + 1])[None, :], axis=1)
 
     return log_lik, log_alpha, log_beta
 
@@ -117,8 +118,7 @@ def baum_welch_improved(
         total_ll = 0.0
 
         for obs in sequences:
-            log_lik, log_alpha, log_beta = _log_forward_backward(
-                log_pi, log_A, log_B, obs)
+            log_lik, log_alpha, log_beta = _log_forward_backward(log_pi, log_A, log_B, obs)
             total_ll += log_lik
 
             # γ_t(i) = exp(log_alpha[t,i] + log_beta[t,i] - log_lik) ∈ [0, 1]
@@ -127,11 +127,13 @@ def baum_welch_improved(
             # ξ_t(i,j) = exp(log_alpha[t,i] + log_A[i,j]
             #               + log_B[j, o_{t+1}] + log_beta[t+1,j] - log_lik)
             obs_next = np.asarray(obs[1:])
-            log_xi = (log_alpha[:-1, :, None]
-                      + log_A[None, :, :]
-                      + log_B[:, obs_next].T[:, None, :]
-                      + log_beta[1:, None, :]
-                      - log_lik)
+            log_xi = (
+                log_alpha[:-1, :, None]
+                + log_A[None, :, :]
+                + log_B[:, obs_next].T[:, None, :]
+                + log_beta[1:, None, :]
+                - log_lik
+            )
             xi = np.exp(log_xi)
 
             obs_arr = np.asarray(obs)
@@ -192,9 +194,7 @@ def fmt_matrix(M: np.ndarray, names: Sequence[str], label: str) -> str:
 
 
 def main() -> None:
-    print("=" * 72)
-    print("  Naive vs improved Baum-Welch training on the weather HMM")
-    print("=" * 72)
+    logger.info("  Naive vs improved Baum-Welch training on the weather HMM")
 
     true_model = HiddenMarkovModel(wm.PI_TRUE, wm.A_TRUE, wm.B_TRUE)
     true_A = np.array(wm.A_TRUE)
@@ -206,11 +206,10 @@ def main() -> None:
     N_RESTARTS = 5
     PSEUDO = 0.5
 
-    print()
-    print(fmt_matrix(true_A, wm.STATE_NAMES, "True A"))
-    print(fmt_matrix(true_B, wm.STATE_NAMES, "True B (Walk / Shop / Clean)"))
+    logger.info(fmt_matrix(true_A, wm.STATE_NAMES, "True A"))
+    logger.info(fmt_matrix(true_B, wm.STATE_NAMES, "True B (Walk / Shop / Clean)"))
 
-    # Naive: identical to main.py
+    # Naive: identical to weather_example.py
     naive_seqs = generate_sequences(true_model, 1, LENGTH, DATA_SEED)
     init_rng = np.random.default_rng(7)
     naive_model = HiddenMarkovModel(
@@ -219,46 +218,52 @@ def main() -> None:
         B=init_rng.dirichlet([1, 1, 1], size=2),
     )
     naive_model.baum_welch(naive_seqs[0], n_iter=2000)
-    d_naive, perm_naive = best_permutation_distance(
-        true_A, true_B, naive_model.A, naive_model.B)
+    d_naive, perm_naive = best_permutation_distance(true_A, true_B, naive_model.A, naive_model.B)
 
     # Improved: many sequences + restarts + smoothing + log-space scaling
-    improved_seqs = generate_sequences(
-        true_model, N_SEQS_IMPROVED, LENGTH, DATA_SEED)
+    improved_seqs = generate_sequences(true_model, N_SEQS_IMPROVED, LENGTH, DATA_SEED)
 
     best_model: HiddenMarkovModel | None = None
     best_ll = -np.inf
     for r in range(N_RESTARTS):
         mdl, ll = baum_welch_improved(
-            improved_seqs, N=2, M=3,
-            n_iter=500, pseudo=PSEUDO, init_seed=100 + r,
+            improved_seqs,
+            N=2,
+            M=3,
+            n_iter=500,
+            pseudo=PSEUDO,
+            init_seed=100 + r,
         )
         if ll > best_ll:
             best_model, best_ll = mdl, ll
     assert best_model is not None
     d_improved, perm_improved = best_permutation_distance(
-        true_A, true_B, best_model.A, best_model.B)
+        true_A, true_B, best_model.A, best_model.B
+    )
 
-    print(f"[Naive] 1 sequence (len {LENGTH}), 1 random init, no smoothing, unscaled F/B")
+    logger.info(f"[Naive] 1 sequence (len {LENGTH}), 1 random init, no smoothing, unscaled F/B")
     p = perm_naive
-    print(fmt_matrix(naive_model.A[p][:, p], wm.STATE_NAMES, "Learned A (label-aligned)"))
-    print(fmt_matrix(naive_model.B[p], wm.STATE_NAMES, "Learned B (label-aligned)"))
-    print(f"  L1 distance |A - Â| + |B - B̂| = {d_naive:.4f}\n")
+    logger.info(fmt_matrix(naive_model.A[p][:, p], wm.STATE_NAMES, "Learned A (label-aligned)"))
+    logger.info(fmt_matrix(naive_model.B[p], wm.STATE_NAMES, "Learned B (label-aligned)"))
+    logger.info(f"  L1 distance |A - Â| + |B - B̂| = {d_naive:.4f}\n")
 
-    print(f"[Improved] {N_SEQS_IMPROVED} sequences (len {LENGTH}, same seed prefix), "
-          f"{N_RESTARTS} restarts,\n"
-          f"           pseudo-count={PSEUDO}, log-space forward/backward")
+    logger.info(
+        f"[Improved] {N_SEQS_IMPROVED} sequences (len {LENGTH}, same seed prefix), "
+        f"{N_RESTARTS} restarts,\n"
+        f"           pseudo-count={PSEUDO}, log-space forward/backward"
+    )
     p = perm_improved
-    print(fmt_matrix(best_model.A[p][:, p], wm.STATE_NAMES, "Learned A (label-aligned)"))
-    print(fmt_matrix(best_model.B[p], wm.STATE_NAMES, "Learned B (label-aligned)"))
-    print(f"  L1 distance |A - Â| + |B - B̂| = {d_improved:.4f}\n")
+    logger.info(fmt_matrix(best_model.A[p][:, p], wm.STATE_NAMES, "Learned A (label-aligned)"))
+    logger.info(fmt_matrix(best_model.B[p], wm.STATE_NAMES, "Learned B (label-aligned)"))
+    logger.info(f"  L1 distance |A - Â| + |B - B̂| = {d_improved:.4f}\n")
 
-    print("=" * 72)
     if d_improved > 0:
-        print(f"  Error reduction: {d_naive / d_improved:.1f}x lower L1 distance "
-              f"(naive {d_naive:.3f} → improved {d_improved:.3f})")
-    print("=" * 72)
+        logger.info(
+            f"  Error reduction: {d_naive / d_improved:.1f}x lower L1 distance "
+            f"(naive {d_naive:.3f} → improved {d_improved:.3f})"
+        )
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     main()
